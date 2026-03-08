@@ -4,11 +4,14 @@ from app.services.storage_service import upload_file
 from app.services.lab_parser import parse_lab_report
 from app.models.ensemble import ensemble_query
 from app.schemas import LabReportResponse, LabReportTest
-import fitz  # PyMuPDF
+from app.services.user_service import increment_lab_reports
+from app.database import execute
+import pypdf
 import pytesseract
 from PIL import Image
 import io
 import uuid
+import json
 
 router = APIRouter()
 
@@ -23,7 +26,10 @@ LAB_RATE_LIMITS = {
 async def upload_lab_report(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     user_id = str(current_user["id"])
     plan = current_user.get("subscription_plan", "free")
-    
+
+    # Increment monthly lab report counter before processing
+    await increment_lab_reports(user_id)
+
     if LAB_RATE_LIMITS.get(plan, 0) == 0:
         raise HTTPException(status_code=403, detail="Lab report analysis requires pro plan or higher")
         
@@ -50,9 +56,9 @@ async def upload_lab_report(file: UploadFile = File(...), current_user: dict = D
     raw_text = ""
     try:
         if ext == "pdf":
-            doc = fitz.open(stream=file_bytes, filetype="pdf")
-            for page in doc:
-                raw_text += page.get_text()
+            reader = pypdf.PdfReader(io.BytesIO(file_bytes))
+            for page in reader.pages:
+                raw_text += page.extract_text()
         else:
             image = Image.open(io.BytesIO(file_bytes))
             raw_text = pytesseract.image_to_string(image)
@@ -82,12 +88,32 @@ async def upload_lab_report(file: UploadFile = File(...), current_user: dict = D
         summary = "Could not parse specific test values from the document. Providing general interpretation based on available text."
     
     pydantic_results = [LabReportTest(**test) for test in parsed_results]
-    
+
+    ai_interpretation = ensemble_res.get("ensemble_response", "")
+    confidence = float(ensemble_res.get("confidence", 0.0))
+    file_url = gcs_url if 'gcs_url' in dir() else ""
+
+    # Save to lab_reports table
+    try:
+        await execute(
+            """INSERT INTO lab_reports (user_id, file_url, parsed_data, interpretation, summary, abnormal_count, confidence)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)""",
+            user_id,
+            file_url,
+            json.dumps(parsed_results),
+            ai_interpretation,
+            summary,
+            abnormal_count,
+            confidence
+        )
+    except Exception as db_err:
+        print(f"[LabReport] DB save error: {db_err}")
+
     return LabReportResponse(
         parsed_results=pydantic_results,
-        ensemble_interpretation=ensemble_res.get("ensemble_response", ""),
+        ensemble_interpretation=ai_interpretation,
         summary=summary,
         abnormal_count=abnormal_count,
         total_tests=total_tests,
-        confidence=float(ensemble_res.get("confidence", 0.0))
+        confidence=confidence
     )

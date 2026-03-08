@@ -5,7 +5,12 @@ pool = None
 
 async def init_db_pool():
     global pool
-    pool = await asyncpg.create_pool(settings.DATABASE_URL)
+    # Neon connection pools (pgBouncer) require statement_cache_size=0
+    pool = await asyncpg.create_pool(
+        settings.DATABASE_URL, 
+        statement_cache_size=0,
+        command_timeout=60
+    )
 
 async def close_db_pool():
     global pool

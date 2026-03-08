@@ -4,7 +4,7 @@ from app.middleware.auth import get_current_user
 from app.utils.safety import detect_emergency
 from app.services.cache import get_cached_response, set_cached_response
 from app.models.ensemble import ensemble_query
-from app.services.chat_service import save_chat
+from app.services.chat_service import save_chat, get_chat_history
 from app.services.user_service import increment_queries
 
 router = APIRouter()
@@ -16,6 +16,7 @@ RATE_LIMITS = {
     "medical_pro": 999
 }
 
+@router.post("", response_model=ChatResponse)
 @router.post("/", response_model=ChatResponse)
 async def chat(req: ChatRequest, current_user: dict = Depends(get_current_user)):
     user_id = str(current_user["id"])
@@ -53,7 +54,7 @@ async def chat(req: ChatRequest, current_user: dict = Depends(get_current_user))
             individual_responses=cached["individual_responses"] if req.include_individual else None
         )
 
-    # Call ensemble
+    # Call ensemble (always uses all 3 HuggingFace models; query_type controls weights)
     result = await ensemble_query(req.message, req.query_type)
     
     # Save cache
@@ -76,3 +77,9 @@ async def chat(req: ChatRequest, current_user: dict = Depends(get_current_user))
         is_emergency=is_emergency,
         individual_responses=ind_res if req.include_individual else None
     )
+
+@router.get("/history")
+async def get_history(limit: int = 20, offset: int = 0, current_user: dict = Depends(get_current_user)):
+    """Get user's chat history, newest first."""
+    chats = await get_chat_history(current_user["id"], limit, offset)
+    return {"chats": chats, "limit": limit, "offset": offset}

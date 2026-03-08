@@ -1,23 +1,23 @@
-from huggingface_hub import AsyncInferenceClient
+import asyncio
+from huggingface_hub import InferenceClient
 from app.config import settings
 from app.utils.prompts import MEDICHAT_PROMPT
 
-MODEL_ID = "sethuiyer/Medichat-Llama3-8B"
-
-client = AsyncInferenceClient(model=MODEL_ID, token=settings.HF_TOKEN)
+client = InferenceClient(model="sethuiyer/Medichat-Llama3-8B", token=settings.HF_TOKEN)
 
 async def query(user_query: str, system_prompt: str = MEDICHAT_PROMPT) -> str | None:
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_query}
-    ]
+    """Query MediChat via Hugging Face Inference API."""
     try:
-        response = await client.chat_completion(
-            messages=messages,
+        response = await asyncio.to_thread(
+            client.chat_completion,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_query}
+            ],
             max_tokens=1024,
             temperature=0.3
         )
         return response.choices[0].message.content
     except Exception as e:
-        print(f"Error calling MediChat-Llama3-8B: {e}")
+        print(f"[MediChat] Error: {e}")
         return None

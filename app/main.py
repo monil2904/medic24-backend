@@ -16,7 +16,13 @@ app = FastAPI(title="Med24 AI API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://med24ai.in", "https://www.med24ai.in", "http://localhost:3000"],
+    allow_origins=[
+        "https://med24ai.in",
+        "https://www.med24ai.in",
+        "https://medic24.vercel.app",       # update with your actual Vercel URL after first deploy
+        "http://localhost:3000",
+        "http://localhost:3001",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

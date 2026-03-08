@@ -1,4 +1,4 @@
-from passlib.context import CryptContext
+import bcrypt
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from app.config import settings
@@ -6,13 +6,15 @@ from fastapi import HTTPException
 from google.oauth2 import id_token
 from google.auth.transport import requests
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    # bcrypt has a hard limit of 72 bytes
+    pwd_bytes = password[:72].encode('utf-8')
+    return bcrypt.hashpw(pwd_bytes, bcrypt.gensalt()).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    pwd_bytes = plain_password[:72].encode('utf-8')
+    hash_bytes = hashed_password.encode('utf-8')
+    return bcrypt.checkpw(pwd_bytes, hash_bytes)
 
 def create_jwt_token(user_id: str, email: str) -> str:
     expire = datetime.utcnow() + timedelta(hours=settings.JWT_EXPIRY_HOURS)

@@ -4,6 +4,7 @@ from app.services.storage_service import upload_file
 from app.models.medgemma import query_with_image
 from app.models.meditron import query as meditron_query
 from app.models.medichat import query as medichat_query
+from app.services.user_service import increment_image_queries
 import base64
 import uuid
 import asyncio
@@ -25,7 +26,10 @@ async def analyze_image(
 ):
     user_id = str(current_user["id"])
     plan = current_user.get("subscription_plan", "free")
-    
+
+    # Increment monthly image query counter
+    await increment_image_queries(user_id)
+
     if IMAGE_RATE_LIMITS.get(plan, 0) == 0:
         raise HTTPException(status_code=403, detail="Image analysis requires basic plan or higher")
         

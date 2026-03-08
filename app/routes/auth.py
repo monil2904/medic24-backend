@@ -41,10 +41,10 @@ async def register(req: RegisterRequest):
 @router.post("/login", response_model=AuthResponse)
 async def login(req: LoginRequest):
     user = await get_user_by_email(req.email)
-    if not user or not user.get("password"):
+    if not user or not user.get("password_hash"):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    if not verify_password(req.password, user["password"]):
+    if not verify_password(req.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = create_jwt_token(str(user["id"]), user["email"])
@@ -96,3 +96,27 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         subscription_plan=current_user.get("subscription_plan", "free"),
         queries_today=current_user.get("queries_today", 0)
     )
+
+@router.post("/upgrade")
+async def upgrade_plan(request: dict, current_user: dict = Depends(get_current_user)):
+    """Upgrade user's subscription plan after successful Razorpay payment."""
+    from app.services.user_service import update_user_plan
+    from app.database import execute
+
+    plan = request.get("plan")
+    razorpay_payment_id = request.get("razorpay_payment_id") or request.get("payment_id")
+
+    if not plan or plan not in ["basic", "pro", "medical_pro"]:
+        raise HTTPException(status_code=400, detail="Invalid plan")
+
+    # Update user's plan in database
+    await update_user_plan(current_user["id"], plan)
+
+    # Save subscription record
+    await execute(
+        """INSERT INTO subscriptions (user_id, plan, razorpay_payment_id, status, started_at)
+           VALUES ($1, $2, $3, 'active', NOW())""",
+        current_user["id"], plan, razorpay_payment_id
+    )
+
+    return {"message": "Plan upgraded successfully", "plan": plan}
