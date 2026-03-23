@@ -5,7 +5,7 @@ from huggingface_hub import InferenceClient
 from app.config import settings
 from app.utils.prompts import MEDGEMMA_PROMPT
 
-client = InferenceClient(model="google/medgemma-27b-it", token=settings.HF_TOKEN)
+client = InferenceClient(model="google/gemma-3-27b-it", token=settings.HF_TOKEN, provider="hf-inference")
 
 async def query(user_query: str, system_prompt: str = MEDGEMMA_PROMPT) -> str | None:
     """Query MedGemma via Hugging Face Inference API."""
