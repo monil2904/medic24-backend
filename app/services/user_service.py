@@ -23,14 +23,11 @@ async def get_user_by_id(user_id: str) -> dict | None:
     return dict(record) if record else None
 
 async def create_or_get_google_user(email: str, name: str, google_id: str) -> dict | None:
-    user = await get_user_by_email(email)
-    if user:
-        # Return existing user (either created by Google before, or standard registration)
-        return user
-    
     query = """
     INSERT INTO users (name, email, google_id, subscription_plan, queries_today, created_at)
     VALUES ($1, $2, $3, 'free', 0, NOW())
+    ON CONFLICT (email) DO UPDATE 
+        SET google_id = EXCLUDED.google_id
     RETURNING id, name, email, password_hash, google_id, subscription_plan, queries_today, created_at
     """
     record = await fetch_one(query, name, email, google_id)
