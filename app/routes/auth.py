@@ -87,6 +87,34 @@ async def google_auth(req: GoogleAuthRequest):
         )
     )
 
+from app.schemas import SupabaseAuthRequest
+from app.services.auth_service import verify_supabase_token
+
+@router.post("/supabase", response_model=AuthResponse)
+async def supabase_auth(req: SupabaseAuthRequest):
+    supabase_data = await verify_supabase_token(req.access_token)
+    
+    user = await create_or_get_google_user(
+        supabase_data["email"], 
+        supabase_data.get("name", ""), 
+        "" 
+    )
+    if not user:
+        raise HTTPException(status_code=500, detail="Error with Supabase Authentication")
+
+    token = create_jwt_token(str(user["id"]), user["email"])
+    
+    return AuthResponse(
+        token=token,
+        user=UserProfile(
+            id=str(user["id"]),
+            name=user.get("name"),
+            email=user["email"],
+            subscription_plan=user.get("subscription_plan", "free"),
+            queries_today=user.get("queries_today", 0)
+        )
+    )
+
 @router.get("/me", response_model=UserProfile)
 async def get_me(current_user: dict = Depends(get_current_user)):
     return UserProfile(

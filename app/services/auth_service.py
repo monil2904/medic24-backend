@@ -38,7 +38,6 @@ def verify_google_token(token: str) -> dict:
         # Verify the Google ID token
         idinfo = id_token.verify_oauth2_token(token, requests.Request(), settings.GOOGLE_CLIENT_ID)
         
-        # We only want basic information
         return {
             "email": idinfo.get("email"),
             "name": idinfo.get("name"),
@@ -46,3 +45,29 @@ def verify_google_token(token: str) -> dict:
         }
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid Google token")
+
+import httpx
+
+async def verify_supabase_token(access_token: str) -> dict:
+    url = f"{settings.SUPABASE_URL}/auth/v1/user"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "apikey": settings.SUPABASE_KEY
+    }
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers)
+        if response.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid Supabase token")
+            
+        user_data = response.json()
+        email = user_data.get("email")
+        if not email:
+            raise HTTPException(status_code=400, detail="Could not retrieve email from Supabase")
+            
+        full_name = user_data.get("user_metadata", {}).get("full_name", "")
+        return {
+            "email": email,
+            "name": full_name,
+            "supabase_id": user_data.get("id")
+        }

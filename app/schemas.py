@@ -15,6 +15,9 @@ class LoginRequest(BaseModel):
 class GoogleAuthRequest(BaseModel):
     id_token: str
 
+class SupabaseAuthRequest(BaseModel):
+    access_token: str
+
 class UserProfile(BaseModel):
     id: str
     name: Optional[str]
