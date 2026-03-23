@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str
     RAZORPAY_KEY_ID: str
     RAZORPAY_KEY_SECRET: str
+    SUPABASE_URL: str
+    SUPABASE_KEY: str
 
     class Config:
         env_file = ".env"
