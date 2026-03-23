@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db_pool, close_db_pool
-from app.routes import auth, chat, image, lab_report, webhook
+from app.routes import auth, chat, image, lab_report, webhook, tips, medicine
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
@@ -35,6 +35,8 @@ app.include_router(chat.router, prefix="/api/v1/chat")
 app.include_router(image.router, prefix="/api/v1/chat/image")
 app.include_router(lab_report.router, prefix="/api/v1/lab-report")
 app.include_router(webhook.router, prefix="/api/v1/razorpay")
+app.include_router(tips.router, prefix="/api/v1/tips")
+app.include_router(medicine.router, prefix="/api/v1/medicine")
 
 @app.get("/health")
 async def health():
