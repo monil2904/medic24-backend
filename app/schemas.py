@@ -47,7 +47,7 @@ class ChatResponse(BaseModel):
     processing_time_ms: int
     disclaimer: str
     is_emergency: bool
-    individual_responses: Optional[Dict[str, str]] = None
+    individual_responses: Optional[Dict[str, Optional[str]]] = None
 
 # Lab Report schemas
 class LabReportTest(BaseModel):
