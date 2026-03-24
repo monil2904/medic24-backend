@@ -17,7 +17,7 @@ router = APIRouter()
 
 LAB_RATE_LIMITS = {
     "free": 0,
-    "basic": 0,
+    "basic": 1,
     "pro": 10,
     "medical_pro": 999
 }
@@ -27,11 +27,21 @@ async def upload_lab_report(file: UploadFile = File(...), current_user: dict = D
     user_id = str(current_user["id"])
     plan = current_user.get("subscription_plan", "free")
 
-    # Increment monthly lab report counter before processing
-    await increment_lab_reports(user_id)
+    # Get usage count first without incrementing (we'll increment later if allowed)
+    limit = LAB_RATE_LIMITS.get(plan, 0)
+    
+    # We must fetch current usage. Let's do it directly through user_service or DB
+    from app.database import fetch_one
+    user_data = await fetch_one("SELECT lab_reports_month FROM users WHERE id = $1::uuid", user_id)
+    current_usage = user_data["lab_reports_month"] if user_data else 0
 
-    if LAB_RATE_LIMITS.get(plan, 0) == 0:
+    if limit == 0:
         raise HTTPException(status_code=403, detail="Lab report analysis requires pro plan or higher")
+    if current_usage >= limit:
+        raise HTTPException(status_code=429, detail=f"Monthly lab report limit ({limit}) exceeded for {plan} plan")
+        
+    # Increment monthly lab report counter before processing since it is allowed
+    await increment_lab_reports(user_id)
         
     # Max size 20MB
     MAX_SIZE = 20 * 1024 * 1024

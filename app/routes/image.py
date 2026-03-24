@@ -27,11 +27,19 @@ async def analyze_image(
     user_id = str(current_user["id"])
     plan = current_user.get("subscription_plan", "free")
 
+    limit = IMAGE_RATE_LIMITS.get(plan, 0)
+    
+    from app.database import fetch_one
+    user_data = await fetch_one("SELECT image_queries_month FROM users WHERE id = $1::uuid", user_id)
+    current_usage = user_data["image_queries_month"] if user_data else 0
+
+    if limit == 0:
+        raise HTTPException(status_code=403, detail="Image analysis requires basic plan or higher")
+    if current_usage >= limit:
+        raise HTTPException(status_code=429, detail=f"Monthly image analysis limit ({limit}) exceeded for {plan} plan")
+        
     # Increment monthly image query counter
     await increment_image_queries(user_id)
-
-    if IMAGE_RATE_LIMITS.get(plan, 0) == 0:
-        raise HTTPException(status_code=403, detail="Image analysis requires basic plan or higher")
         
     # Check size (max 10MB)
     MAX_SIZE = 10 * 1024 * 1024
