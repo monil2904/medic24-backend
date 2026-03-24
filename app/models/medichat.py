@@ -26,8 +26,3 @@ async def query(user_query: str, system_prompt: str = MEDICHAT_PROMPT) -> str | 
     except Exception as e:
         print(f"[Llama] Error: {e}")
         return None
-```
-
-### File 4: `requirements.txt` — ADD this line at the end:
-```
-openai>=1.40.0
