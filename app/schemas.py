@@ -49,6 +49,11 @@ class ChatResponse(BaseModel):
     is_emergency: bool
     individual_responses: Optional[Dict[str, Optional[str]]] = None
 
+# Medicine schemas
+class MedicineLookupRequest(BaseModel):
+    medicine_name: str
+    query_type: str = "general"
+
 # Lab Report schemas
 class LabReportTest(BaseModel):
     test: str
